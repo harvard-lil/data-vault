@@ -1,0 +1,35 @@
+[project]
+name = "data-vault"
+version = "0.1.0"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "httpx>=0.27.2",
+    "tqdm>=4.67.0",
+    "pyarrow>=18.0.0",
+    "aiosqlite>=0.20.0",
+    "publicsuffixlist>=1.0.2.20241121",
+    "bagit>=1.8.1",
+    "boto3>=1.35.80",
+    "jsondiff>=2.2.1",
+    "peewee>=3.17.8",
+    "nabit",
+    "gitspoke",
+    "cloudflare>=4.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+dev-dependencies = [
+    "memray>=1.15.0",
+]
+
+[tool.uv.sources]
+nabit = { git = "https://github.com/harvard-lil/bag-nabit" }
+gitspoke = { git = "https://github.com/harvard-lil/gitspoke" }
+
+[tool.hatch.build.targets.wheel]
+packages = ["scripts"]

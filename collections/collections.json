@@ -1,0 +1,7 @@
+[
+  {
+    "directory": "data_gov",
+    "aws_profile": "sc",
+    "s3_path": "us-west-2.opendata.source.coop/harvard-lil/gov-data"
+  }
+]

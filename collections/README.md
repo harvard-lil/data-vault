@@ -1,0 +1,1 @@
+Static files to be added to individual collections.
