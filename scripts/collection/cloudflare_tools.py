@@ -3,7 +3,7 @@ from pathlib import Path
 import click
 from cloudflare import Cloudflare
 import os
-from scripts.helpers.config import load_config
+from scripts.helpers.misc import load_config
 
 logger = logging.getLogger(__name__)
 

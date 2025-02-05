@@ -9,7 +9,7 @@ from gitspoke.cli import valid_include_items, get_token
 import os
 import json
 import requests
-from scripts.helpers.config import load_config
+from scripts.helpers.misc import load_config
 
 logger = logging.getLogger(__name__)
 stats_counter = {}

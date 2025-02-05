@@ -11,3 +11,10 @@ def load_config():
     else:
         config = {}
     return config 
+
+
+def json_default(obj):
+    """Default JSON encoder for serializing datetime objects."""
+    if hasattr(obj, 'isoformat'):
+        return obj.isoformat()
+    return super().default(obj)
