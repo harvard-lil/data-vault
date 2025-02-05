@@ -115,5 +115,5 @@ that link only to a landing page will need to be collected separately.
 Source code
 -----------
 
-The source code used to generate this and other repositories is available at [https://github.com/harvard-lil/data-mirror](https://github.com/harvard-lil/data-mirror).
+The source code used to generate this and other repositories is available at [https://github.com/harvard-lil/data-vault](https://github.com/harvard-lil/data-vault).
 We welcome conversation and collaboration in the issue tracker for that project.

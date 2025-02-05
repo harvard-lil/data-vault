@@ -32,7 +32,7 @@ Util libraries used by other scripts.
 
 ### data_gov
 
-Scripts for working with the [data.gov](https://data.gov) collection.
+Scripts for working with the [data.gov collection](https://source.coop/repositories/harvard-lil/gov-data/description) .
 
 * fetch_jsonl.py: fetch a jsonl file of the full API.
 * fetch_index.py: fetch the full API and store updates in a sqlite database.
@@ -44,7 +44,7 @@ Scripts for working with the [data.gov](https://data.gov) collection.
 
 ### github
 
-Scripts for working with the [github](https://github.com) collection.
+Scripts for working with the github collection.
 
 * download_git.py: use [gitspoke](https://github.com/harvard-lil/gitspoke) to download all repositories listed in a CSV.
 
