@@ -42,9 +42,9 @@ Scripts for working with the [data.gov collection](https://source.coop/repositor
 * models.py: database models for the sqlite database.
 * data_gov_diff/: scripts for identifying changes in past data created by fetch_jsonl.py or fetch_index.py (WIP).
 
-### github
+### GitHub
 
-Scripts for working with the github collection.
+Scripts for working with the GitHub collection.
 
 * download_git.py: use [gitspoke](https://github.com/harvard-lil/gitspoke) to download all repositories listed in a CSV.
 
