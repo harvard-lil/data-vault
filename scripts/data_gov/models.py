@@ -18,6 +18,12 @@ class BaseModel(Model):
     class Meta:
         database = db
 
+class Crawl(BaseModel):
+    id = AutoField(primary_key=True)
+    start_date = DateTimeField()
+    end_date = DateTimeField(null=True)
+    
+
 class Dataset(BaseModel):
     # fields from data.gov
     id = CharField(primary_key=True)
@@ -54,8 +60,10 @@ class Dataset(BaseModel):
     # fields starting with crawler_ are added by our crawler
     crawler_identified_date = DateTimeField(null=True, default=datetime.now)
     crawler_downloaded_date = DateTimeField(null=True)
+    crawler_last_crawl_id = ForeignKeyField('Crawl', backref='datasets', null=True)
+
 
 class DatasetHistory(Dataset):
     history_id = AutoField(primary_key=True)
     id = CharField()  # Regular CharField, not primary key
-    #deleted_by_date = DateTimeField(null=True)  # New field to track deletion date
+    deleted_by_date = DateTimeField(null=True)

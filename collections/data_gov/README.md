@@ -84,9 +84,9 @@ Rollup files
 There are several rollup files at the top level to help with finding datasets
 of interest:
 
-* `metadata.jsonl.zip`: zipped JSON lines file of all files contained in metadata/
+* `metadata.csv.zip`: CSV listing the name, organization, title, date, metadata path, and collection path for each dataset
+* `metadata.jsonl.zip`: JSON lines file with complete metadata for each dataset, including the `signed_metadata` and `zip_entries` sections (equivalent to downloading the metadata/ directory as a single file)
 * `file_listing.jsonl.zip`: zipped JSON lines file showing the s3 listing of all files in the repository
-* `collections.html`: human-readable HTML file showing the title and link to each dataset (warning, very large file that may not load in some browsers)
 
 Downloading data
 ----------------
@@ -117,3 +117,10 @@ Source code
 
 The source code used to generate this and other repositories is available at [https://github.com/harvard-lil/data-vault](https://github.com/harvard-lil/data-vault).
 We welcome conversation and collaboration in the issue tracker for that project.
+
+Collection Dates and Update Schedule
+------------------------------------
+
+Files in this repository were collected intermittently between 2024-11-19 and 2025-02-06.
+
+Beginning on 2025-02-06, we will update the repository daily.

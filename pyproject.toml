@@ -16,6 +16,8 @@ dependencies = [
     "nabit",
     "gitspoke",
     "cloudflare>=4.0.0",
+    "deepdiff>=8.2.0",
+    "orjson>=3.10.15",
 ]
 
 [build-system]
