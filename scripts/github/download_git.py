@@ -20,8 +20,6 @@ from scripts.helpers.bag import fetch_and_upload
 logger = logging.getLogger(__name__)
 stats_counter = {}
 
-CONFIG_PATH = (os.environ.get("XDG_CONFIG_HOME") or (Path.home() / ".config")) / "data-mirror" / "config.json"
-
 def check_repo_exists(org_name, repo_name, token, output_path=None):
     """Check if a repository still exists on GitHub."""
     exists = True
