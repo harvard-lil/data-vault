@@ -2,14 +2,12 @@ import boto3
 import click
 from tqdm import tqdm
 import logging
-from itertools import islice
 import json
-import gzip
-from io import BytesIO
 import tempfile
 import os
 from scripts.helpers.misc import json_default
 import zipfile
+from scripts.helpers.onepassword import save_item, share_item
 
 logger = logging.getLogger(__name__)
 
@@ -122,11 +120,8 @@ def cli():
 @click.argument('s3_path')
 @click.option('--profile', help='AWS profile name', default='sc-direct')
 @click.option('--dry-run', is_flag=True, help='Show what would be done without actually doing it')
-@click.option('--log-level', type=click.Choice(['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']), 
-              default='INFO', help='Set logging level')
-def undelete(s3_path: str, profile: str = None, dry_run: bool = False, log_level: str = 'INFO'):
+def undelete(s3_path: str, profile: str = None, dry_run: bool = False):
     """Remove delete markers from versioned S3 objects, effectively undeleting them."""
-    logging.basicConfig(level=log_level)
     bucket, prefix = s3_path.split('/', 1)
     
     session = boto3.Session(profile_name=profile)
@@ -138,11 +133,8 @@ def undelete(s3_path: str, profile: str = None, dry_run: bool = False, log_level
 @click.argument('s3_path')
 @click.option('--profile', help='AWS profile name', default='sc-direct')
 @click.option('--dry-run', is_flag=True, help='Show what would be done without actually doing it')
-@click.option('--log-level', type=click.Choice(['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']), 
-              default='INFO', help='Set logging level')
-def delete_empty(s3_path: str, profile: str = None, dry_run: bool = False, log_level: str = 'INFO'):
+def delete_empty(s3_path: str, profile: str = None, dry_run: bool = False):
     """Delete all zero-size objects under the given prefix."""
-    logging.basicConfig(level=log_level)
     bucket, prefix = s3_path.split('/', 1)
     
     session = boto3.Session(profile_name=profile)
@@ -154,11 +146,8 @@ def delete_empty(s3_path: str, profile: str = None, dry_run: bool = False, log_l
 @click.argument('s3_path')
 @click.option('--profile', help='AWS profile name', default='sc-direct')
 @click.option('--output', '-o', help='Output path for index file', default=None)
-@click.option('--log-level', type=click.Choice(['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']), 
-              default='INFO', help='Set logging level')
-def write_index(s3_path: str, profile: str = None, output: str | None = None, log_level: str = 'INFO'):
+def write_index(s3_path: str, profile: str = None, output: str | None = None):
     """Write a JSONL index of all files under the given prefix."""
-    logging.basicConfig(level=log_level)
     bucket, prefix = s3_path.split('/', 1)
     
     if output is None:
@@ -169,6 +158,117 @@ def write_index(s3_path: str, profile: str = None, output: str | None = None, lo
     
     write_file_listing(s3_client, bucket, prefix, output)
 
+@cli.command()
+@click.argument('bucket_name')
+@click.option('--profile', '-p', help='AWS profile name')
+@click.option('--region', '-r', help='AWS region', default='us-east-1')
+@click.option('--tag', '-t', help='Tag the bucket with a name', default=None)
+def create_bucket(bucket_name: str, profile: str = None, region: str = 'us-east-1', tag: str | None = None):
+    """Create a new S3 bucket with versioning enabled by default."""
+    session = boto3.Session(profile_name=profile)
+    s3_client = session.client('s3')
+    
+    # Ensure bucket exists
+    try:
+        if region == 'us-east-1':
+            s3_client.create_bucket(Bucket=bucket_name)
+        else:
+            s3_client.create_bucket(
+                Bucket=bucket_name,
+                CreateBucketConfiguration={'LocationConstraint': region},
+            )
+    except s3_client.exceptions.BucketAlreadyExists:
+        logger.warning(f"Bucket {bucket_name} already exists. Updating settings.")
+
+    # Configure bucket
+    s3_client.put_bucket_versioning(
+        Bucket=bucket_name,
+        VersioningConfiguration={'Status': 'Enabled'}
+    )
+    
+    logger.info(f"Ensured bucket {bucket_name} exists with versioning enabled")
+
+@cli.command()
+@click.argument('bucket_name')
+@click.argument('username')
+@click.option('--profile', '-p', help='AWS profile name')
+@click.option('--permissions-boundary', '-b', help='ARN of the permissions boundary policy')
+@click.option('--op-vault', help='1Password vault to store credentials in', default='Private')
+@click.option('--op-share', help='Share the credentials with the given email', default=None)
+def create_user(bucket_name: str, username: str, profile: str, permissions_boundary: str, op_vault: str, op_share: str | None):
+    """Generate temporary S3 credentials with read/write/list access for a specific bucket."""
+    session = boto3.Session(profile_name=profile)
+    iam_client = session.client('iam')
+    
+    # Define inline policy for bucket access
+    bucket_policy = {
+        "Version": "2012-10-17",
+        "Statement": [{
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:DeleteObject",
+                "s3:ListBucket"
+            ],
+            "Resource": [
+                f"arn:aws:s3:::{bucket_name}",
+                f"arn:aws:s3:::{bucket_name}/*"
+            ]
+        }]
+    }
+    
+    # Create the IAM user with permissions boundary
+    try:
+        iam_client.create_user(
+            UserName=username,
+            PermissionsBoundary=permissions_boundary
+        )
+        logger.info(f"Created IAM user: {username}")
+    except iam_client.exceptions.EntityAlreadyExistsException:
+        logger.warning(f"User {username} already exists")
+        
+    # Attach inline policy directly to user
+    iam_client.put_user_policy(
+        UserName=username,
+        PolicyName=f"{bucket_name}-access",
+        PolicyDocument=json.dumps(bucket_policy)
+    )
+    logger.info(f"Attached bucket access policy to user {username}")
+    
+    # Create access key for the user
+    response = iam_client.create_access_key(UserName=username)
+    credentials = response['AccessKey']
+    
+    # Output the credentials
+    click.echo(f"AWS_ACCESS_KEY_ID={credentials['AccessKeyId']}")
+    click.echo(f"AWS_SECRET_ACCESS_KEY={credentials['SecretAccessKey']}")
+    
+    # Save credentials to 1Password if requested
+    if op_vault:
+        item = save_item(op_vault, f"{username} S3 Credentials for {bucket_name}", [
+            {
+                'title': 'Access Key ID',
+                'value': credentials['AccessKeyId'],
+                'section_id': 's3_details'
+            },
+            {
+                'title': 'Secret Access Key',
+                'value': credentials['SecretAccessKey'],
+                'section_id': 's3_details'
+            },
+            {
+                'title': 'S3 Bucket',
+                'value': bucket_name,
+                'section_id': 's3_details'
+            },
+        ])
+        if op_share:
+            share_link = share_item(item, [op_share])
+            click.echo(f"To share credentials with {op_share}, use the following link: {share_link}")
+
+        
 if __name__ == '__main__':
     cli()
+
 

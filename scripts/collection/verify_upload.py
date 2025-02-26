@@ -73,18 +73,8 @@ def verify_dataset(json_url: str, zip_url: str, output_dir: Path | None = None):
 @click.argument('zip_url', type=str)
 @click.option('--output', '-o', type=click.Path(path_type=Path), 
               help='Directory to write uncompressed files')
-@click.option('--log-level', '-l', 
-              type=click.Choice(['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']), 
-              default='INFO',
-              help='Logging level.')
-def main(json_url: str, zip_url: str, output: Path = None, log_level: str = 'INFO'):
+def main(json_url: str, zip_url: str, output: Path = None):
     """Verify dataset from JSON and ZIP URLs"""
-    # Set up logging
-    logging.basicConfig(
-        level=getattr(logging, log_level),
-        format='%(asctime)s - %(levelname)s - %(message)s'
-    )
-    
     verify_dataset(json_url, zip_url, output)
 
 if __name__ == '__main__':

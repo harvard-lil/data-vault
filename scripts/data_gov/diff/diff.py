@@ -61,17 +61,8 @@ def find_differences(csv_data: Dict[str, dict],
 @click.option('--compare-by', '-c',
               default='id',
               help='Field to compare by.')
-@click.option('--log-level', '-l',
-              type=click.Choice(['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']),
-              default='INFO',
-              help='Logging level.')
 def main(old_path: Path, new_path: Path, compare_by: str, log_level: str):
     """Compare records between CSV and JSONL files."""
-    logging.basicConfig(
-        level=getattr(logging, log_level),
-        format='%(asctime)s - %(levelname)s - %(message)s'
-    )
-    
     old_data = load_jsonl_data(old_path, compare_by=compare_by)
     new_data = load_jsonl_data(new_path, compare_by=compare_by)
     

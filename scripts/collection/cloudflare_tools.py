@@ -54,15 +54,9 @@ def cli():
               help='Key prefixes to restrict access to. Can be specified multiple times.')
 @click.option('--objects', '-o', multiple=True,
               help='Specific object keys to restrict access to. Can be specified multiple times.')
-@click.option('--log-level', '-l', 
-              type=click.Choice(['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']), 
-              default='INFO',
-              help='Logging level.')
 def generate_key(bucket: str, permission: str, ttl: int, prefixes: tuple[str, ...], 
                 objects: tuple[str, ...], log_level: str):
     """Generate temporary Cloudflare R2 access credentials."""
-    # Setup logging
-    logging.basicConfig(level=log_level)
     
     # Load config
     config = load_config().get("temp_tokens", {})

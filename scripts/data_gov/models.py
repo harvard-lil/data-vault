@@ -60,7 +60,7 @@ class Dataset(BaseModel):
     # fields starting with crawler_ are added by our crawler
     crawler_identified_date = DateTimeField(null=True, default=datetime.now)
     crawler_downloaded_date = DateTimeField(null=True)
-    crawler_last_crawl_id = ForeignKeyField('Crawl', backref='datasets', null=True)
+    crawler_last_crawl_id = ForeignKeyField(Crawl, backref='datasets', null=True)
 
 
 class DatasetHistory(Dataset):

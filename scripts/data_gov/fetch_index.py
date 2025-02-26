@@ -151,17 +151,8 @@ def cli():
               help='Number of results to fetch per page.')
 @click.option('--start-date', '-s', type=str, default=None,
               help='Date to start fetching from (format: YYYY-MM-DDTHH:MM:SS.mmmmmm)')
-@click.option('--log-level', '-l', 
-              type=click.Choice(['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']), 
-              default='WARNING',
-              help='Logging level.')
-def fetch(output_path: Path, rows_per_page: int, start_date: str, log_level: str):
+def fetch(output_path: Path, rows_per_page: int, start_date: str):
     """Fetch package data from data.gov API and save to database."""
-    logging.basicConfig(
-        level=getattr(logging, log_level),
-        format='%(asctime)s - %(levelname)s - %(message)s'
-    )
-    
     save_packages_to_database(output_path, rows_per_page, start_date)
 
 @cli.command()

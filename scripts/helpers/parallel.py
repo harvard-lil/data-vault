@@ -25,16 +25,8 @@ def worker(task_queue, task, catch_errors: bool = True):
                 raise e
 
 
-def run_parallel(processor: Callable, tasks: Iterable, workers = None, catch_errors: bool = True, log_level: str | None = None, task_count: int | None = None):
+def run_parallel(processor: Callable, tasks: Iterable, workers = None, catch_errors: bool = True, task_count: int | None = None):
     workers = workers or os.cpu_count() or 4
-    
-    # Configure logging based on whether we're running in parallel or not
-    if log_level is None:
-        log_level = 'INFO' if workers == 1 else 'WARNING'
-    logging.basicConfig(
-        level=log_level,
-        format='[%(process)d] %(message)s'
-    )
     
     logger.debug(f"Starting processing with {workers} workers")
     

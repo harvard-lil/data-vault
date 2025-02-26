@@ -22,19 +22,10 @@ def cli():
 @click.argument('output_path', type=click.Path(path_type=Path))
 @click.option('--rows-per-page', '-r', type=int, default=1000,
               help='Number of results to fetch per page.')
-@click.option('--log-level', '-l', 
-              type=click.Choice(['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']), 
-              default='INFO',
-              help='Logging level.')
 @click.option('--start-date', '-s', type=str, default=None,
               help='Start date for fetching packages in YYYY-MM-DD format.')
 def fetch(output_path: Path, rows_per_page: int, log_level: str, start_date: str):
     """Fetch all package data from data.gov API and save to gzipped JSONL file."""
-    logging.basicConfig(
-        level=getattr(logging, log_level),
-        format='%(asctime)s - %(levelname)s - %(message)s'
-    )
-    
     if output_path.is_dir():
         current_date = datetime.now().strftime('%Y%m%d')
         output_path = output_path / f'data_{current_date}.jsonl.gz'
@@ -49,17 +40,8 @@ def fetch(output_path: Path, rows_per_page: int, log_level: str, start_date: str
 @cli.command()
 @click.argument('file1', type=click.Path(exists=True, path_type=Path))
 @click.argument('file2', type=click.Path(exists=True, path_type=Path))
-@click.option('--log-level', '-l', 
-              type=click.Choice(['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']), 
-              default='INFO',
-              help='Logging level.')
 def compare(file1: Path, file2: Path, log_level: str):
     """Compare two gzipped JSONL files by indexing on the 'name' key."""
-    logging.basicConfig(
-        level=getattr(logging, log_level),
-        format='%(asctime)s - %(levelname)s - %(message)s'
-    )
-
     def load_jsonl_index(file_path: Path) -> Dict[str, Any]:
         # Check for pickle file
         pickle_path = file_path.with_suffix('.pickle')

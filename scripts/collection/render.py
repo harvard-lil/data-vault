@@ -74,18 +74,10 @@ def render_html(datasets_query, output_path: Path) -> None:
 @click.command()
 @click.argument('db_path', type=click.Path(path_type=Path), default='data/data.db')
 @click.argument('output_path', type=click.Path(path_type=Path), default='data/processed/web')
-@click.option('--log-level', '-l', 
-              type=click.Choice(['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']), 
-              default='INFO',
-              help='Logging level.')
 @click.option('--limit', '-n', type=int, default=None,
               help='Maximum number of rows to display. Default: all rows.')
-def main(db_path: Path, output_path: Path, log_level: str, limit: int | None):
+def main(db_path: Path, output_path: Path, limit: int | None):
     """Render the Dataset table to an HTML file."""
-    logging.basicConfig(
-        level=getattr(logging, log_level),
-        format='%(asctime)s - %(levelname)s - %(message)s'
-    )
     
     logger.info(f"Connecting to database at {db_path}")
     db.init(db_path)

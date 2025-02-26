@@ -18,6 +18,7 @@ dependencies = [
     "cloudflare>=4.0.0",
     "deepdiff>=8.2.0",
     "orjson>=3.10.15",
+    "onepassword-sdk>=0.1.7",
 ]
 
 [build-system]
@@ -35,3 +36,6 @@ gitspoke = { git = "https://github.com/harvard-lil/gitspoke" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["scripts"]
+
+[project.scripts]
+vault = "scripts.cli:cli"
