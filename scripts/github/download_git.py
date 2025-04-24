@@ -6,16 +6,12 @@ import click
 from tqdm import tqdm
 from gitspoke import Downloader, GitHubAPI
 from gitspoke.cli import valid_include_items, get_token
-import os
-import json
 import uuid
 import requests
 from datetime import datetime
 from scripts.helpers.misc import load_config
-from nabit.lib.archive import package
-from nabit.lib.sign import KNOWN_TSAS, is_encrypted_key
 from nabit.lib.backends.path import PathCollectionTask
-from scripts.helpers.bag import fetch_and_upload
+from scripts.helpers.bag import fetch_and_upload, parse_signatures
 
 logger = logging.getLogger(__name__)
 stats_counter = {}
@@ -38,13 +34,21 @@ def check_repo_exists(org_name, repo_name, token, output_path=None):
                 output_file.write(f"{repo_link}\n")
     return exists
 
+def get_date_range(path):
+    """Get the date range of a directory."""
+    dates = []
+    for file in path.glob('**/*'):
+        if file.is_file():
+            dates.append(datetime.fromtimestamp(file.stat().st_mtime))
+    return min(dates), max(dates)
+
 def run_pipeline(
     org_name, 
     repo_name, 
     collection_path, 
-    include, 
-    token,
     metadata_path=None,
+    include=None, 
+    token=None,
     output_path=None,
     signatures=None,
     session_args=None,
@@ -68,16 +72,23 @@ def run_pipeline(
         return
     
     def create_archive_callback(temp_dir):
+        collect_dir = None
+
+        # first see if we can get the data from raw_dir
         if raw_dir:
             raw_path = raw_dir / org_name / repo_name
             if raw_path.exists():
-                out_dir = raw_path
-        else:
+                collect_dir = raw_path
+
+        # else download
+        if not collect_dir:
             Downloader(org_name, repo_name, token, max_retries=20).download_repo(temp_dir, include=include)
-            out_dir = temp_dir
+            collect_dir = temp_dir
+
+        start_date, end_date = get_date_range(collect_dir)
         return {
             'collect': [
-                PathCollectionTask(path=out_dir)
+                PathCollectionTask(path=collect_dir)
             ],
             'signed_metadata': {
                 'id': str(uuid.uuid4()),
@@ -86,6 +97,8 @@ def run_pipeline(
                 'github_metadata': {
                     'org': org_name,
                     'repo': repo_name,
+                    'download_start_date': start_date.isoformat(),
+                    'download_end_date': end_date.isoformat(),
                     'archived_date': datetime.now().isoformat()
                 },
             },
@@ -107,34 +120,23 @@ def run_pipeline(
 
 def get_tasks(
     csv_path: Path,
-    output_path: Path,
+    skip_existing: bool = False,
     skip_rows: int = 0,
-    skip_existing: bool = False, 
-    stop_after: int = None,
-    include: str = None,
-    archive_mode: bool = False,
-    signatures: list = None,
-    session_args: dict = None,
-    s3_path: str = None,
-    no_delete: bool = False,
-    save_raw: bool = False,
-    raw_dir: Path = None,
-    check_exists: bool = False,
-    output_deleted: Path = None,
+    stop_after: int | None = None,
+    **kwargs,
 ):
     """Get repositories from CSV that haven't been processed yet."""
     # Initialize progress bars
-    if not check_exists:
-        stats_counter['total'] = tqdm(desc="Total records", unit="repo")
-        if skip_existing:
-            stats_counter['skipped'] = tqdm(desc="Skipped", unit="repo")
-            stats_counter['yielded'] = tqdm(desc="Processing", unit="repo")
+    stats_counter['total'] = tqdm(desc="Total records", unit="repo")
+    if skip_existing:
+        stats_counter['skipped'] = tqdm(desc="Skipped", unit="repo")
+        stats_counter['yielded'] = tqdm(desc="Processing", unit="repo")
 
     # handle --include
-    if include:
-        include = include.split(',')
+    if kwargs['include']:
+        kwargs['include'] = kwargs['include'].split(',')
     else:
-        include = ['repo_info']
+        kwargs['include'] = ['repo_info']
     
     # import token or tokens
     config = load_config()
@@ -147,16 +149,18 @@ def get_tasks(
     else:
         logger.warning("Using unauthenticated rate limits")
 
+    output_path = kwargs['output_path']
+
     with open(csv_path, 'r') as file:
         reader = csv.DictReader(file)
+
         # Skip specified number of rows
         for _ in range(skip_rows):
             next(reader)
             
         processed = 0
         for row in reader:
-            if not check_exists:
-                stats_counter['total'].update(1)
+            stats_counter['total'].update(1)
             
             if not row['html_url']:  # Skip empty rows
                 continue
@@ -166,33 +170,26 @@ def get_tasks(
             collection_path = output_path / 'data' / org_name / repo_name / 'v1.zip'
             metadata_path = output_path / 'metadata' / org_name / repo_name / 'v1.json'
                 
-            if skip_existing and collection_path.exists():
-                stats_counter['skipped'].update(1)
-                continue
-            else:
-                stats_counter['yielded'].update(1)
+            if skip_existing:
+                if metadata_path.exists():
+                    stats_counter['skipped'].update(1)
+                    continue
+                else:
+                    stats_counter['yielded'].update(1)
 
             # use tokens round robin
             token = tokens[processed % len(tokens)]
 
-            yield (
-                org_name,
-                repo_name,
-                collection_path,
-                include,
-                token,
-                output_deleted,
-                archive_mode,
-                metadata_path,
-                output_path,
-                signatures,
-                session_args,
-                s3_path,
-                save_raw,
-                raw_dir,
-                check_exists,
-                no_delete,
-            )
+            # Create kwargs dictionary for run_pipeline
+            task_kwargs = {
+                'org_name': org_name,
+                'repo_name': repo_name,
+                'metadata_path': metadata_path,
+                'collection_path': collection_path,
+                **kwargs,
+            }
+
+            yield task_kwargs
 
             processed += 1
             if stop_after and processed >= stop_after:
@@ -204,7 +201,7 @@ def get_tasks(
 
 
 @click.command()
-@click.option('--output-path', '-o', type=click.Path(path_type=Path), default='data/processed',
+@click.option('--output-path', '-o', type=click.Path(path_type=Path), default='data/federal_github',
               help='Output path.')
 @click.option('--workers', '-w', type=int, default=None, 
               help='Number of worker processes. Defaults to CPU count.')
@@ -224,30 +221,18 @@ def get_tasks(
 # raw saving
 # useful if doing multiple runs with the same csv and different --include values
 @click.option('--save-raw', is_flag=True, help='Save raw repositories to disk rather than bagging and uploading')
-@click.option('--raw-dir', type=click.Path(path_type=Path), help='Directory to save raw repositories to')
+@click.option('--raw-dir', type=click.Path(path_type=Path), help='Directory to save raw repositories to or fetch from')
 # deletion checking
 @click.option('--check-exists', is_flag=True, help='Only check if repositories still exist on GitHub')
 @click.option('--output-deleted', type=click.Path(path_type=Path), help='File to output deleted repositories to')
 def main(profile, workers, **kwargs):
     
-    session_args = {}
+    kwargs['session_args'] = {}
     if profile:
-        session_args['profile_name'] = profile
+        kwargs['session_args']['profile_name'] = profile
 
-    if signatures := kwargs.get('signatures'):
-        signatures = json.loads(signatures)
-        for signature in signatures:
-            if signature['action'] == 'sign':
-                if is_encrypted_key(signature['params']['key']):
-                    signature['params']['password'] = click.prompt(
-                        f"Enter password for {signature['params']['key']}: ", 
-                        hide_input=True
-                    )
-            elif signature['action'] == 'timestamp':
-                if known_tsa := signature.pop('known_tsa', None):
-                    signature['params'] = KNOWN_TSAS[known_tsa]
-        kwargs['signatures'] = signatures
-    
+    kwargs['signatures'] = parse_signatures(kwargs['signatures'])
+
     run_parallel(
         run_pipeline,
         get_tasks(**kwargs),

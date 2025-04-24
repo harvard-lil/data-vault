@@ -9,6 +9,9 @@ from datetime import datetime
 import tempfile
 import shutil
 from nabit.lib.archive import package
+from nabit.lib.sign import KNOWN_TSAS, is_encrypted_key
+import click
+
 
 logger = logging.getLogger(__name__)
 
@@ -154,3 +157,17 @@ def fetch_and_upload(
         upload_archive(output_path, collection_path, metadata_path, s3_path, session_args)
 
     cleanup_files(collection_path, no_delete, s3_path) 
+
+def parse_signatures(signature_json):
+    signatures = json.loads(signature_json)
+    for signature in signatures:
+        if signature['action'] == 'sign':
+            if is_encrypted_key(signature['params']['key']):
+                signature['params']['password'] = click.prompt(
+                    f"Enter password for {signature['params']['key']}", 
+                    hide_input=True
+                )
+        elif signature['action'] == 'timestamp':
+            if known_tsa := signature.pop('known_tsa', None):
+                signature['params'] = KNOWN_TSAS[known_tsa]
+    return signatures

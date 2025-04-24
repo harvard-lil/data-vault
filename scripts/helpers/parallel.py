@@ -11,11 +11,11 @@ logger = logging.getLogger(__name__)
 def worker(task_queue, task, catch_errors: bool = True):
     while True:
         try:
-            args = task_queue.get(timeout=1)
-            if args is None:
+            kwargs = task_queue.get(timeout=1)
+            if kwargs is None:
                 break
             logger.debug(f"[PID {os.getpid()}] Processing task")
-            task(*args)
+            task(**kwargs)
         except Empty:
             continue
         except Exception as e:

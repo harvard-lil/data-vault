@@ -1,12 +1,7 @@
-from nabit.lib.archive import package
-from nabit.lib.sign import KNOWN_TSAS, is_encrypted_key
 from nabit.lib.backends.url import UrlCollectionTask
 from pathlib import Path
-import json
 import uuid
-import tempfile
 import click
-import os
 from urllib.parse import urlparse
 import re
 from scripts.helpers.parallel import run_parallel
@@ -15,7 +10,7 @@ from scripts.data_gov.models import db, Dataset
 from playhouse.shortcuts import model_to_dict
 from tqdm import tqdm
 from datetime import datetime
-from scripts.helpers.bag import zip_archive, upload_archive, cleanup_files, fetch_and_upload
+from scripts.helpers.bag import parse_signatures, fetch_and_upload
 
 logger = logging.getLogger(__name__)
 
@@ -157,18 +152,7 @@ def main(db_path: Path, output_path: Path, collection: str, workers=None, min_si
         workers = 1
         stop_after = 1
 
-    if signatures:
-        signatures = json.loads(signatures)
-        for signature in signatures:
-            if signature['action'] == 'sign':
-                if is_encrypted_key(signature['params']['key']):
-                    signature['params']['password'] = click.prompt(
-                        f"Enter password for {signature['params']['key']}: ", 
-                        hide_input=True
-                    )
-            elif signature['action'] == 'timestamp':
-                if known_tsa := signature.pop('known_tsa', None):
-                    signature['params'] = KNOWN_TSAS[known_tsa]
+    signatures = parse_signatures(signatures)
 
     session_args = {}
     if profile:
@@ -202,14 +186,23 @@ def main(db_path: Path, output_path: Path, collection: str, workers=None, min_si
                             break
                         version += 1
 
-            yield dataset, output_path, metadata_path, collection_path, signatures, session_args, s3_path, no_delete
+            yield {
+                'dataset': dataset,
+                'output_path': output_path,
+                'metadata_path': metadata_path,
+                'collection_path': collection_path,
+                'signatures': signatures,
+                'session_args': session_args,
+                's3_path': s3_path,
+                'no_delete': no_delete,
+            }
 
             processed += 1
             if stop_after and processed >= stop_after:
                 break
 
     try:
-        run_parallel(run_pipeline, get_tasks(), workers, log_level=log_level, catch_errors=False)
+        run_parallel(run_pipeline, get_tasks(), workers, catch_errors=False)
     finally:
         # Close progress bars
         for counter in stats_counter.values():
