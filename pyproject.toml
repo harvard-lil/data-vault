@@ -19,6 +19,8 @@ dependencies = [
     "deepdiff>=8.2.0",
     "orjson>=3.10.15",
     "onepassword-sdk>=0.1.7",
+    "pyquery>=2.0.1",
+    "requests-cache>=1.2.1",
 ]
 
 [build-system]
