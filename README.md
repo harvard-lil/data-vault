@@ -6,6 +6,12 @@ for others as is, but are available for reference about the creation of our
 data and for remix. We also welcome contributions if they fit our internal
 pipelines and goals.
 
+## Documentation
+
+* [docs/data-gov-archiving-workflow.md](docs/data-gov-archiving-workflow.md): how the data.gov collection was built, and known problems with the pipeline.
+* [docs/unavailable-datasets.csv](docs/unavailable-datasets.csv): the 120 data.gov datasets listed in the collection's metadata whose bags were never published.
+* [docs/signing.md](docs/signing.md): the certificate the gov-data and federal-github bags were signed with, and how to verify them.
+
 ## Scripts
 
 Scripts are organized into subfolders for general categories of tasks:
