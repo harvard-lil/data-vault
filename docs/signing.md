@@ -14,7 +14,7 @@ Each bag's `signatures/` directory contains:
 |---|---|
 | `tagmanifest-sha256.txt.p7s` | Detached CMS signature (PEM), including the signing certificate and its intermediate |
 | `tagmanifest-sha256.txt.p7s.tsr` | RFC 3161 timestamp over the `.p7s` file, from DigiCert |
-| `tagmanifest-sha256.txt.p7s.tsr.crt` | DigiCert Assured ID Root CA, for checking the timestamp |
+| `tagmanifest-sha256.txt.p7s.tsr.crt` | DigiCert Assured ID Root CA, stored for checking the timestamp. Mozilla has since removed it from its trust store; see below |
 
 ## Signing certificate
 
@@ -39,7 +39,11 @@ Root CA - R6.
 certificate and the intermediate. The root is in common trust stores.
 
 The timestamps were issued by `CN=DigiCert Timestamp 2024`, under DigiCert
-Trusted G4 RSA4096 SHA256 TimeStamping CA and DigiCert Trusted Root G4.
+Trusted G4 RSA4096 SHA256 TimeStamping CA and DigiCert Trusted Root G4
+(SHA-256 `55:2F:7B:DC:F1:A7:AF:9E:6C:E6:72:01:7F:4F:12:AB:F7:72:40:C7:8E:76:1A:C2:03:D1:D9:D2:0A:C8:99:88`).
+The timestamp token's chain also includes a cross-certificate from G4 to
+DigiCert Assured ID Root CA, the root stored in each bag. Current trust stores
+include G4 but not Assured ID Root CA, so check timestamps against G4.
 
 ## Dates
 
@@ -66,7 +70,7 @@ unzipped bag:
 # 1. Check the timestamp, and read the time it attests
 openssl ts -verify -data signatures/tagmanifest-sha256.txt.p7s \
   -in signatures/tagmanifest-sha256.txt.p7s.tsr \
-  -CAfile signatures/tagmanifest-sha256.txt.p7s.tsr.crt
+  -CAfile DigiCertTrustedRootG4.pem   # from the system trust store, or https://cacerts.digicert.com/DigiCertTrustedRootG4.crt.pem
 openssl ts -reply -in signatures/tagmanifest-sha256.txt.p7s.tsr -text | grep 'Time stamp'
 
 # 2. Check the signature as of that time, given in Unix seconds
